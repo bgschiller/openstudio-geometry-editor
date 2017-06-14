@@ -11,15 +11,15 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
     <div @click="$emit('close')" class="overlay"></div>
     <div class="modal">
         <header>
-            <h2>Enable the Map?</h2>
+            <h2>Quick Start</h2>
         </header>
 
         <div class="content">
-            <p>If you would like to geolocate your floorplan, place the map at your desired location now.</p>
-            <button @click="mapEnabled = true; tool='Map'; $emit('close')">Place Map</button>
-            <button @click="mapEnabled = false; mapVisible = false; $emit('close')">Disable Map</button>
-            <input ref="importInput" @change="importModelAsFile" type="file"/>
+            <p>Choose to either open an existing floorplan, start a new floorplan without a map, or start a new floorplan with a geolocated map.</p>
             <button @click="$refs.importInput.click()" id="import">Open Floorplan</button>
+            <button @click="mapEnabled = false; mapVisible = false; $emit('close')">New Floorplan</button>
+            <button @click="mapEnabled = true; tool='Map'; $emit('close')">New Floorplan w/ Map</button>
+            <input ref="importInput" @change="importModelAsFile" type="file"/>
         </div>
     </div>
 </aside>
@@ -71,7 +71,7 @@ export default {
 <style lang="scss" scoped>
 @import "./../../scss/config";
 .content {
-    margin: 0 2rem 2rem 2rem;
+    margin: 0 2rem 1rem 2rem;
     text-align: center;
 
     button {
@@ -84,7 +84,7 @@ export default {
 }
 
 .modal {
-    width: 30rem;
+    width: 35rem;
 }
 
 </style>
