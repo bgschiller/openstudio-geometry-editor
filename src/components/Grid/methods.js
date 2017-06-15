@@ -125,7 +125,7 @@ export default {
         // remove expired guideline paths and text
         this.eraseGuidelines();
 
-        var guidelinePoints, guidelinePaths;
+        var guidelinePoints, guidelinePaths, dimX, dimY;
 
         // if the polygon tool is active, draw a line connecting the last point in the polygon to the guide point
         // if the rectangle or eraser tool is active, infer a rectangle from the first point that was drawn and the guide point
@@ -145,6 +145,10 @@ export default {
                 [guidelinePoints[0],guidelinePoints[1]],
                 [guidelinePoints[1],guidelinePoints[2]]
             ];
+
+            // calculate dimensions for display in tooltip
+            dimX = this.getGuideDistance(...guidelinePaths[0]);
+            dimY = this.getGuideDistance(...guidelinePaths[1]);
         }
 
         const guidelineArea = this.currentTool === 'Polygon' ? [...this.points, guidePoint, this.points[0]] : guidelinePoints,
@@ -175,70 +179,29 @@ export default {
                 else if (this.currentShading) { return this.currentShading.color; }
             });
 
-        // don't render area/distance when erasing
-        if (this.currentTool === 'Eraser') { return; }
-
-        // render gridline distance(s)
-        svg.selectAll('.guideline-text')
-            .data(guidelinePaths)
-            .enter()
-            .append('text')
-            .attr('x', d => d[0].x + (d[1].x - d[0].x)/2)
-            .attr('y', d => d[0].y + (d[1].y - d[0].y)/2)
-            .attr('dx', - 1.25 * (this.transform.k > 1 ? 1 : this.transform.k) + "em")
-            .text(d => {
-                let zoom = this.transform.k,
-                    dist = this.distanceBetweenPoints({
-                        x: d[0].x / zoom,
-                        y: d[0].y / zoom
-                    },
-                    {
-                        x: d[1].x / zoom,
-                        y: d[1].y / zoom
-                    });
-
-                return dist ? dist.toFixed(2) : "";
-            })
-            .classed('guideline guideline-text',true)
-            .attr("font-family", "sans-serif")
-            .attr("fill", "red")
-            .style("font-size","1em");
-
-        if (guidelineArea.length > 3) {
-            let areaPoints = guidelineArea.map(p => {
-                    let x = this.gridToRWU(p.x,'x'),
-                        y = this.gridToRWU(p.y,'y');
-
-                    return { x, y, X: x, Y: y };
-                }),
-                { x, y, area } = this.polygonLabelPosition(areaPoints),
-                areaText = area ? area.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,") + " m²" : "";
-
-            if (x === null || y === null) {
-                // either polygon has 0 area or something went wrong --> don't draw area text
-                return;
-            }
-
-            // render unfinished area #
-            svg.append('text')
-                .attr('x', x)
-                .attr('y', y)
-                .text(areaText)
-                .classed('guideline guideline-text guideLine',true)
-                .attr("text-anchor", "middle")
-                .attr("font-family", "sans-serif")
-                .attr("fill", "red")
-                .style("font-size","1em")
-                .raise();
-        }
-
+        this.drawTooltip(e,dimX,dimY,this.getGuideArea(guidelineArea));
         d3.selectAll('.vertical, .horizontal').lower();
+    },
+    drawTooltip (e,dimX,dimY,area) {
+        if (dimX || dimY || area) {
+            let text = area + (dimX && dimY ? ' (' + dimX + ' x ' + dimY + ')' : '')
+
+            this.tooltip = {
+                text,
+                x: e.clientX + 'px',
+                y: e.clientY + 'px',
+                visible: !!text.length
+            };
+        } else {
+            this.tooltip.visible = false;
+        }
     },
     /*
     * Erase any drawn guidelines
     */
     eraseGuidelines () {
         d3.selectAll('#grid .guideline').remove();
+        this.tooltip.visible = false;
     },
     /*
     * Handle escape key presses to cancel current drawing operation
@@ -395,6 +358,8 @@ export default {
             .on('start', function (d) {
                 // remove text label when dragging
                 d3.select('#text-' + d.face_id).remove();
+                // hide tooltip
+                _this.tooltip.visible = false;
             })
             .on('drag', function (d) {
                 if (_this.currentTool !== 'Select' || d.previous_story) { return; }
@@ -429,6 +394,35 @@ export default {
                         this.$store.dispatch('application/setCurrentShading', { 'shading': model });
                     }
                 }
+            })
+            .on('mousemove', function (d,i) {
+                // show tooltip on hover
+                const e = d3.event,
+                    points = d.points,
+                    area = _this.getGuideArea(points);
+
+                var dimX = null,
+                    dimY = null;
+
+                if (points.length === 4 ) {
+                    // rectangle? --> calculate dimensions to make sure
+                    let x1 = _this.getGuideDistance(points[0],points[1],true),
+                        y1 = _this.getGuideDistance(points[1],points[2],true),
+                        x2 = _this.getGuideDistance(points[2],points[3],true),
+                        y2 = _this.getGuideDistance(points[3],points[0],true);
+
+                    if (x1 === x2 && y1 === y2) {
+                        // rectangle
+                        dimX = x1;
+                        dimY = y1;
+                    }
+                }
+
+                _this.drawTooltip(e,dimX,dimY,area);
+            })
+            .on('mouseout', () => {
+                // hide tooltip
+                _this.tooltip.visible = false;
             })
             .attr('points', d => d.points.map(p => [this.rwuToGrid(p.x, 'x'), this.rwuToGrid(p.y, 'y')].join(',')).join(' '))
             .attr('class', (d, i) => {
@@ -907,12 +901,11 @@ export default {
     */
     polygonLabelPosition (pointsIn) {
         const points = [pointsIn.map(p => [this.rwuToGrid(p.x, 'x'), this.rwuToGrid(p.y, 'y')])],
-            area = Math.abs(Math.round(geometryHelpers.areaOfSelection(pointsIn))), // calculate area in RWU, not grid units
+            area = this.polygonArea(pointsIn),
             [ x, y ] = area ? polylabel(points, 1.0) : [null, null];
 
         return { x, y, area };
     },
-
     /*
     * Format tick labels to maintain legibility
     */
@@ -940,5 +933,32 @@ export default {
             yPadding = this.scaleX(paddingPerDigit*numDigits);
 
         this.axis.y.call(this.axis_generator.y.tickPadding(yPadding));
-    }
+    },
+    /*
+    * Geo helpers
+    */
+    getGuideDistance (p1,p2,noScaling) {
+        let zoom = this.transform.k,
+            dist = noScaling ? this.distanceBetweenPoints(p1,p2) : this.distanceBetweenPoints({ x: p1.x / zoom, y: p1.y / zoom }, { x: p2.x / zoom, y: p2.y / zoom });
+
+        return dist ? dist.toFixed(2) : "";
+    },
+    getGuideArea (points) {
+        if (points.length > 3) {
+            let areaPoints = points.map(p => {
+                    let x = this.gridToRWU(p.x,'x'),
+                        y = this.gridToRWU(p.y,'y');
+
+                    return { x, y, X: x, Y: y };
+                }),
+                areaVal = this.polygonArea(areaPoints);
+
+            return areaVal ? areaVal.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,") + " m²" : "";
+        } else {
+            return null;
+        }
+    },
+    polygonArea (pointsIn) {
+        return Math.abs(Math.round(geometryHelpers.areaOfSelection(pointsIn))); // calculate area in RWU, not grid units
+    },
 }

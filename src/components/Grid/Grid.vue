@@ -9,6 +9,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 <template>
 <div id="grid" :style="{ 'pointer-events': (currentTool === 'Drag' || currentTool === 'Map') ? 'none': 'all' }">
     <svg ref="grid" preserveAspectRatio="none" id="svg-grid"></svg>
+    <div id="tooltip" :style="{ visibility: tooltip.visible ? 'visible' : 'hidden', left: tooltip.x, top: tooltip.y }">{{tooltip.text}}</div>
 </div>
 </template>
 
@@ -53,7 +54,13 @@ export default {
                 kAbs: 1 // absolute zoom
             },
             handleMouseMove: null, // placeholder --> overwritten in mounted()
-            forceGridHide: false
+            forceGridHide: false,
+            tooltip: {
+                visible: false,
+                x: null,
+                y: null,
+                text: null
+            }
         };
     },
     mounted() {
@@ -300,5 +307,18 @@ export default {
         width: 100%;
         z-index: 2;
     }
+
+    #tooltip {
+        position: fixed;
+        background: white;
+        border: 1px solid $gray-darkest;
+        color: $gray-medium;
+        border-radius: 3px;
+        padding: 3px;
+        pointer-events: none;
+        z-index: 3;
+        margin: 15px;
+    }
 }
+
 </style>
