@@ -7,7 +7,7 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER, THE UNITED STATES GOVERNMENT, OR ANY CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
 
 <template>
-    <div id="images" ref="images" :style="{ 'pointer-events': currentTool === 'Drag' ? 'all': 'none' }"></div>
+    <div id="images" ref="images" :style="{ 'pointer-events': currentTool === 'Drag' ? 'all': 'none', cursor: cursor || 'auto' }"></div>
 </template>
 
 <script>
@@ -24,9 +24,10 @@ export default {
     name: 'images',
     data () {
         return {
+            cursor: null,
             stage: null,
             // cache images on the component so that we can check which property was altered in the images watcher
-            imageCache: []
+            imageCache: [],
         };
     },
     mounted () {
@@ -202,13 +203,13 @@ export default {
 
             // hover effect
             rotateAnchor.on('dragstart mouseover mousedown', () => {
-                document.body.style.cursor = 'pointer';
+                this.cursor = 'pointer';
                 rotateAnchorCircle.setRadius(10);
                 layer.draw();
             });
 
             rotateAnchor.on('mouseout', () => {
-                document.body.style.cursor = 'default';
+                this.cursor = null;
                 rotateAnchorCircle.setRadius(6);
                 layer.draw();
             });
@@ -216,7 +217,8 @@ export default {
         // set up resize behavior
         initResize (group) {
             const imageObj = group.get('.image')[0],
-                { width: w, height: h } = imageObj.size();
+                { width: w, height: h } = imageObj.size(),
+                layer = group.getLayer();
 
             addResizeAnchor.call(this, group, 0, 0, 'topLeft');
             addResizeAnchor.call(this, group, w, 0, 'topRight');
@@ -302,13 +304,15 @@ export default {
 
                 // hover effect
                 anchor.on('mouseover', () => {
-                    document.body.style.cursor = 'pointer';
-                    anchor.setRadius(6).draw();
+                    this.cursor = 'pointer';
+                    anchor.setRadius(6);
+                    layer.draw();
                 });
 
                 anchor.on('mouseout', () => {
-                    document.body.style.cursor = 'default';
-                    anchor.setRadius(3).draw();
+                    this.cursor = null;
+                    anchor.setRadius(3);
+                    layer.draw();
                 });
 
                 group.add(anchor);
@@ -430,7 +434,7 @@ export default {
                 this.resetStage();
             },
             deep: true
-        }
+        },
     }
 }
 </script>

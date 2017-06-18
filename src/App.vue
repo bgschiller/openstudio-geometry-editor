@@ -14,7 +14,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
                 <resize id="layout-navigation" :resize-right="true" :resize-right-min="200">
                     <navigation :class="{ 'disabled-component': tool === 'Map' }"></navigation>
                 </resize>
-                <main>
+                <main :style="{ cursor: gridCursor }">
                     <canvas-view></canvas-view>
                     <grid-view></grid-view>
                 </main>
@@ -52,7 +52,33 @@ export default {
 
     },
     computed: {
-        ...mapState({ tool: state => state.application.currentSelections.tool })
+        ...mapState({
+            tool: state => state.application.currentSelections.tool
+        }),
+        gridCursor () {
+            var cursor;
+
+            switch (this.tool) {
+                case 'Rectangle':
+                case 'Polygon':
+                case 'Eraser':
+                    cursor = 'crosshair';
+                    break;
+                case 'Select':
+                case 'Place Component':
+                case 'Apply Property':
+                    cursor = 'pointer';
+                    break;
+                case 'Map':
+                case 'Drag':
+                    cursor = 'move';
+                    break;
+                default:
+                    cursor = 'auto';
+            }
+
+            return cursor;
+        },
     },
     components: {
         'grid-view': Grid,
