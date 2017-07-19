@@ -1,7 +1,7 @@
 window.api = {
   config: null,
   initAlreadyRun: false,
-  doImport: (data) => {
+  importFloorPlan: (data) => {
     try {
       window.application.$store.dispatch('importModel', {
         clientWidth: document.getElementById('svg-grid').clientWidth,
@@ -13,6 +13,17 @@ window.api = {
     }
     return true;
   },
+  importLibrary: (data) => {
+    try {
+      window.application.$store.dispatch('importLibrary', {
+        data: JSON.parse(data)
+      });
+    } catch (err) {
+      return false;
+    }
+    return true;
+  },
+  throwError: (msg) => { throw new Error(msg); },
   doExport: () => window.application.$store.getters['exportData'],
   setConfig: (config) => {
     if (this.initAlreadyRun) {
